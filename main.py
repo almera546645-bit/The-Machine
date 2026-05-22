@@ -7,12 +7,10 @@ import requests
 from bs4 import BeautifulSoup
 
 # === НАСТРОЙКИ БОТА ===
-# Вставь сюда свой токен от BotFather (как в прошлый раз)
-BOT_TOKEN = '8983463329:AAG8LuVFvDO9xtz0LnWiuzgyGaxNF3JMWFY' 
+BOT_TOKEN = '8983463329:AAG8LuVFvD09xtz0LnWiuzgyGaxNF3JMWFY' 
 bot = telebot.TeleBot(BOT_TOKEN)
 
 # Твой ID в Телеграме (сюда Машина будет слать уведомления)
-# Робот определит его автоматически при команде /start
 USER_CHAT_ID = None 
 
 TARGETS = {
@@ -29,7 +27,6 @@ STOP_WORDS = [
     "магазин", "куплю", "обмен", "ищу", "без геймпада", "без джойстика"
 ]
 
-# Сюда Машина будет запоминать ссылки, которые уже тебе отправила, чтобы не спамить повторно
 SENT_ADS = set()
 
 # === БОЕВОЙ АЛГОРИТМ ПОИСКА ===
@@ -38,23 +35,18 @@ def scan_radar():
     print("Локатор запущен, сканируем рынок...")
     
     while True:
-        # Если ты еще не нажала /start, робот ждет и не шлет спам в пустоту
         if not USER_CHAT_ID:
             time.sleep(10)
             continue
             
         for target, max_price in TARGETS.items():
             try:
-                # В будущем здесь будет точный URL площадки. Пока ставим базовый поисковый запрос
                 print(f"Ищем: {target} до {max_price} руб...")
                 
-                # Имитируем находку для проверки (в боевом режиме тут будет реальный веб-запрос)
-                # Как только со всем разберемся, мы настроим парсинг конкретной ссылки площадки
                 demo_title = f"Продам {target} в отличном состоянии"
                 demo_price = max_price - 1000
                 demo_url = "https://example.com/item123"
                 
-                # Проверка стоп-слов
                 has_stop_word = any(word in demo_title.lower() for word in STOP_WORDS)
                 
                 if demo_price <= max_price and not has_stop_word and demo_url not in SENT_ADS:
@@ -71,14 +63,13 @@ def scan_radar():
             except Exception as e:
                 print(f"Ошибка при сканировании {target}: {e}")
                 
-        # Пауза между проверками (например, каждые 5 минут), чтобы сервер не заблокировали
         time.sleep(300) 
 
 # === КОМАНДЫ ТЕЛЕГРАМ ===
 @bot.message_handler(commands=['start', 'status'])
 def send_status(message):
     global USER_CHAT_ID
-    USER_CHAT_ID = message.chat.id  # Запоминаем твой чат для отправки находок
+    USER_CHAT_ID = message.chat.id
     
     report = "🟢 **Машина-Радар в боевом режиме!**\n\n"
     report += "📍 Локатор переключен на автоматический фоновый поиск.\n"
@@ -89,7 +80,5 @@ def send_status(message):
     bot.reply_to(message, report, parse_mode='Markdown')
 
 if __name__ == '__main__':
-    # Запускаем радар в отдельном фоновом потоке
     threading.Thread(target=scan_radar, daemon=True).start()
-    # Запускаем самого бота
     bot.infinity_polling()
