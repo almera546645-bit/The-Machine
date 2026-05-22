@@ -1,9 +1,19 @@
+
 import os
 import time
 import threading
 import telebot
 import requests
 from bs4 import BeautifulSoup
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+# === ФЕЙКОВЫЙ ВЕБ-СЕРВЕР ДЛЯ ОБМАНА RENDER ===
+class RenderHealthServer(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/html")
+        self.end_headers()
+        self.wfile.write(b"Machine is running perfectly!")
 
 # === НАСТРОЙКИ БОТА ===
 BOT_TOKEN = '8983463329:AAG8LuVFvDO9xtz0LnWiuzgyGaxNF3JMWFY' 
@@ -11,7 +21,6 @@ bot = telebot.TeleBot(BOT_TOKEN)
 
 USER_CHAT_ID = None 
 
-# Базовые настройки целей и цен
 TARGETS = {
     "xbox series s": 13000,
     "ps4 slim": 11000,
@@ -27,15 +36,13 @@ STOP_WORDS = [
 ]
 
 SENT_ADS = set()
-
-# Регионы поиска на Авито
 REGIONS = ["krym", "krasnodarskiy_kray"]
 
+# === БОЕВОЙ АЛГОРИТМ ПОИСКА ===
 def scan_radar():
     global USER_CHAT_ID
     print("Боевой локатор Авито запущен...")
     
-    # Маскируемся под обычный браузер, чтобы Авито меньше ругался
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept-Language": "ru-RU,ru;q=0.9"
@@ -49,29 +56,23 @@ def scan_radar():
         for target, max_price in TARGETS.items():
             for region in REGIONS:
                 try:
-                    # Строим прямую ссылку: регион + категория приставки + запрос + сортировка по дате (s=104)
                     search_url = f"https://www.avito.ru/{region}/igrovye_pristavki_igry_i_programmy?q={target.replace(' ', '+')}&s=104"
                     print(f"Сканируем Авито ({region}) для: {target}...")
                     
                     response = requests.get(search_url, headers=headers, timeout=10)
-                    
                     if response.status_code != 200:
-                        print(f"Авито выставил защиту (код {response.status_code}). Пропускаем круг...")
                         continue
                         
                     soup = BeautifulSoup(response.text, 'html.parser')
-                    # Находим блоки объявлений на Авито по их внутреннему маркеру
                     items = soup.find_all('div', {'data-marker': 'item'})
                     
                     for item in items:
                         try:
-                            # Название товара
                             title_element = item.find('h3', {'itemprop': 'name'})
                             if not title_element:
                                 continue
                             title = title_element.text.strip()
                             
-                            # Ссылка на товар
                             link_element = item.find('a', {'itemprop': 'url'})
                             if not link_element:
                                 continue
@@ -80,7 +81,6 @@ def scan_radar():
                             if url in SENT_ADS:
                                 continue
                                 
-                            # Цена товара
                             price_element = item.find('meta', {'itemprop': 'price'})
                             if price_element:
                                 price = int(price_element['content'])
@@ -91,10 +91,8 @@ def scan_radar():
                                 else:
                                     continue
                             
-                            # Проверяем стоп-слова
                             has_stop_word = any(word in title.lower() for word in STOP_WORDS)
                             
-                            # Если цена подходит и хлама в названии нет — шлём в Телеграм!
                             if price <= max_price and not has_stop_word:
                                 alert = (
                                     f"🎯 **НАЙДЕНО НА АВИТО!**\n\n"
@@ -113,10 +111,7 @@ def scan_radar():
                 except Exception as e:
                     print(f"Ошибка сканирования: {e}")
                 
-                # Делаем паузу между запросами, чтобы Авито нас не забанил
                 time.sleep(20)
-                
-        # Спим 10 минут перед тем, как начать новый полный круг проверок
         time.sleep(600)
 
 # === КОМАНДЫ ТЕЛЕГРАМ ===
@@ -134,5 +129,14 @@ def send_status(message):
     bot.reply_to(message, report, parse_mode='Markdown')
 
 if __name__ == '__main__':
+    # 1. Запускаем локатор в фоновом потоке
     threading.Thread(target=scan_radar, daemon=True).start()
-    bot.infinity_polling()
+    
+    # 2. Запускаем Телеграм-бота в фоновом потоке
+    threading.Thread(target=bot.infinity_polling, daemon=True).start()
+    
+    # 3. Запускаем веб-сервер на ОСНОВНОМ потоке (Рендер будет видеть его в первую очередь)
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), RenderHealthServer)
+    print(f"Веб-сервер запущен на порту {port}")
+    server.serve_forever()
