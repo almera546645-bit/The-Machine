@@ -6,7 +6,7 @@ import requests
 from bs4 import BeautifulSoup
 
 # === НАСТРОЙКИ БОТА ===
-BOT_TOKEN = '8983463329:AAG8LuVFvD09xtz0LnWiuzgyGaxNF3JMWFY' 
+BOT_TOKEN = '8983463329:AAG8LuVFvDO9xtz0LnWiuzgyGaxNF3JMWFY' 
 bot = telebot.TeleBot(BOT_TOKEN)
 
 USER_CHAT_ID = None 
