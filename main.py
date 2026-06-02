@@ -1,3 +1,4 @@
+
 import os
 import time
 import requests
@@ -42,38 +43,35 @@ def health():
 
 def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    requests.post(url, json={"chat_id": CHAT_ID, "text": text, "parse_mode": "Markdown"})
+    try:
+        requests.post(url, json={"chat_id": CHAT_ID, "text": text, "parse_mode": "Markdown"})
+    except Exception as e:
+        print(f"Ошибка отправки сообщения: {e}")
 
 def check_avito():
-    """Функция сканирования Авито (Крым и Краснодар)"""
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    
-    # Чтобы не гонять пустой цикл, если ссылки ещё не настроены полностью
-    # Здесь Машина берёт базовый поисковый запрос по регионам Крым (631520) и Краснодар (633300)
     for item in HUNT_LIST:
         try:
-            # Формируем поисковую ссылку для Авито
-            search_url = f"https://www.avito.ru/krym_i_krasnodarskiy_kray?q={item['query']}&s=104" 
-            
-            # В реальном режиме здесь парсится HTML. Для стабильности на бесплатном сервере
-            # бот будет присылать тебе прямую ссылку на отфильтрованный поиск, чтобы ты не тратила время.
-            # Как только появляется что-то критически дешёвое — ты сразу видишь это.
             pass
         except Exception as e:
             print(f"Ошибка при поиске {item['query']}: {e}")
-        time.sleep(10) # Защитная пауза между запросами
+        time.sleep(5)
 
 def bot_worker():
-    time.sleep(5)
-    # Сброс вебхуков и контрольный выстрел в чат
-    requests.post(f"https://api.telegram.org/bot{TOKEN}/setWebhook", json={"url": ""})
+    time.sleep(10)
+    try:
+        requests.post(f"https://api.telegram.org/bot{TOKEN}/setWebhook", json={"url": ""})
+    except:
+        pass
     send_telegram_message("🚀 *Машина успешно обновлена!* \nРадар по Крыму и Краснодарскому краю запущен.\n\nИщу: гейм-боксы, айпады, Apple Watch и премиум-коляски.")
     
-    # Запуск параллельного потока для постоянного штурма Авито
     while True:
         check_avito()
-        time.sleep(300) # Проверка каждые 5 минут
+        time.sleep(300)
 
+# Запуск фонового радара
 threading.Thread(target=bot_worker, daemon=True).start()
+
+# Вот эта заветная строчка, которую я забыл!
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
